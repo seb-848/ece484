@@ -33,11 +33,6 @@ int main() {
     std::vector<bool> bitSequence = {
         1, 1, 0, 0, 0, 0, 1, 0,   // ASCii
     };
-    /*for (const auto& byte : binaryBytes) {
-        std::cout << "Byte: " << byte << std::endl;
-    }
-    int nth_bit = (binaryBytes >> 3) & 1;  // Extract nth bit
-    std::cout << "Bit at position " << 3 << " is: " << nth_bit << std::endl; */
 
 
     // Determines seed length
