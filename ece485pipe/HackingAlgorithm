@@ -1,0 +1,174 @@
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <bitset>
+#include <pstl/execution_defs.h>
+#include <cstdint>
+
+// Function Declarations
+std::vector<std::string> generateParityBitSequences(int seedLength);
+int binaryToDecimal(const std::vector<int>& binary);
+void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::vector<std::string>& PSeq, std::vector<bool> data);
+
+
+
+int main() {
+
+    // Section will be replaced when seed is taken from transmitted bit sequence. For now user enters seed bit sequence
+
+    std::string user_input;
+    std::vector<int> seed_vec;
+    std::cout << "Please enter the seed bit sequence: ";
+    std::cin >> user_input;
+    for (char digit : user_input) {
+        seed_vec.push_back(digit - '0'); // Convert char to int
+    }
+
+    std::cout << "Seed Bit Sequence: { ";
+    for (int num : seed_vec) {
+        std::cout << num << " ";
+    }
+    std::cout << "}\n";
+
+    std::vector<bool> bitSequence = {
+        1, 1, 0, 0, 0, 0, 1, 0,   // ASCii
+    };
+    /*for (const auto& byte : binaryBytes) {
+        std::cout << "Byte: " << byte << std::endl;
+    }
+    int nth_bit = (binaryBytes >> 3) & 1;  // Extract nth bit
+    std::cout << "Bit at position " << 3 << " is: " << nth_bit << std::endl; */
+
+
+    // Determines seed length
+    int seed_length = seed_vec.size();
+    std::cout << "The length is: " << seed_length << std::endl;
+    std::cout << "The number of parity bit sequences is: " << pow(2, seed_length)-1 << std::endl;
+
+    // Generating parity bit sequences
+    std::vector<std::string> sequences = generateParityBitSequences(seed_length);
+
+    // Printing saved parity bit sequences
+    std::cout << "Generated sequences:\n";
+    for (const auto& seq : sequences) {
+        std::cout << seq << std::endl;
+    }
+
+    // Creates matrix template, only needs to be run once
+    initializeMatrix(seed_vec, seed_length, sequences, bitSequence);
+
+}
+
+
+// Function Definitions
+
+std::vector<std::string> generateParityBitSequences(int seedLength) {
+    std::vector<std::string> sequences; // Stores the generated sequences
+
+    if (seedLength <= 0) {
+        std::cerr << "Error: Seed length must be at least 1.\n";
+        return sequences; // Return empty vector
+    }
+    int totalSequences = (1 << seedLength) - 1; // 2^n - 1 (exclude 0)
+    for (int i = 1; i <= totalSequences; ++i) {
+        std::string binaryString = std::bitset<32>(i).to_string().substr(32 - seedLength);
+        sequences.push_back(binaryString); // Save the sequence
+    }
+    return sequences;
+}
+
+int binaryToDecimal(const std::vector<int>& binary) {
+    int decimal = 0;
+    int n = 8;
+    for (int i = 0; i < n; ++i) {
+        decimal += binary[i] * std::pow(2, n - 1 - i);
+    }
+    return decimal;
+}
+
+void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::vector<std::string>& PSeq, std::vector<bool> data) {
+    int rows = length + 8;
+    int cols = length + 1;
+    std::vector<int> P(length);
+    std::vector<int> Bn(length);
+    std::vector<int> decrypted_byte(7);
+    int B_n;
+    std::vector<int> Xn(length);
+    int X_n;
+
+    std::vector<std::vector<int>> matrix(rows, std::vector<int>(cols, 0));
+
+    // Fill in the template matrix with seed bits
+    for (int j = 0; j < length; ++j) {
+        for (int i = 0; i < length - j; ++i) {
+            matrix[i][j] = binarySeq[length - 1 - i - j];  // Corrected reverse order
+        }
+    }
+
+    // For statement to go through parity bit sequence
+    for (int m =0 ; m < (pow(2, length)-1) ; ++m) {
+        for (int b =0 ; b < length ; ++b) {
+            unsigned num = PSeq[m][b];
+            P[b] = num - 48;
+        }
+
+        for (int i = 0 ; i < (length + 7); ++i) {
+
+
+            for (int d = 0 ; d < length ; ++d) {
+                Bn[d] = (matrix[i + length - 2][length - 1 - d]) * P[d];
+                if (d == 0) {
+                    B_n = Bn[d];
+                }
+                if (d != 0) {
+                    B_n = B_n ^ Bn[d];
+                }
+            }
+            for (int j = 0; j < length; ++j) {
+                if (length + i + j - 1 < length + 8) {
+                    matrix[length + i + j - 1][length - 1 - j] = B_n;
+                }
+            }
+            if (i > length-2) {
+                for (int d = 0 ; d < length ; ++d) {
+                    Xn[d] = (matrix[i + length - 2][length - 1 - d]) * P[length - 1 - d];
+                    if (d == 0) {
+                        X_n = Xn[d];
+                    }
+                    if (d != 0) {
+                        X_n = X_n ^ Xn[d];
+                    }
+                }
+                X_n = X_n ^ data[i-1];
+                matrix[i+1][length] = X_n;
+            }
+        }
+        // Display the matrix
+        std::cout << "Initialized " << rows << "x" << cols << " matrix:\n";
+        for (const auto& row : matrix) {
+            for (int val : row) {
+                std::cout << val << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << "Decrypted Byte: ";
+        for (int h=0; h<8; ++h) {
+            decrypted_byte[h] = matrix[length + h][length];
+            std::cout << decrypted_byte[h];
+        }
+        std::cout << "\n";
+        int decimal_Value = binaryToDecimal(decrypted_byte);
+        std::cout << "Decimal Value: " << decimal_Value << std::endl;
+        if (decimal_Value >= 0 && decimal_Value <= 127) {
+            char asciiChar = static_cast<char>(decimal_Value);
+            std::cout << "The ASCII character for " << decimal_Value << " is: " << asciiChar << std::endl;
+        } else {
+            std::cout << "Invalid ASCII value." << std::endl;
+        }
+        std::cout << "\n \n";
+    }
+
+
+
+
+}
