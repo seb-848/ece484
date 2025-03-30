@@ -7,8 +7,11 @@
 
 // Function Declarations
 std::vector<std::string> generateParityBitSequences(int seedLength);
+std::vector<std::vector<bool>> splitIntoBytes(const std::vector<bool>& bitSequence, size_t offset);
 int binaryToDecimal(const std::vector<int>& binary);
-void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::vector<std::string>& PSeq, std::vector<bool> data);
+
+void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::vector<std::string> &PSeq,
+                      std::vector<bool> data, std::vector<bool> &final, int u);
 
 
 
@@ -31,9 +34,14 @@ int main() {
     std::cout << "}\n";
 
     std::vector<bool> bitSequence = {
-        1, 1, 0, 0, 0, 0, 1, 0,   // ASCii
+        1, 1, 0, 0, 0, 0, 1, 0, 1,1,0,0,1,1,1,1,1,1,0,0,0,1,1,0,1,1,0,0,0,1,0,1,   // ASCii
     };
 
+    // End replacement section
+
+    // Splitting decrypted bytes into 8 after given offset
+    size_t offset = 0;
+    auto result = splitIntoBytes(bitSequence, offset);
 
     // Determines seed length
     int seed_length = seed_vec.size();
@@ -49,8 +57,19 @@ int main() {
         std::cout << seq << std::endl;
     }
 
-    // Creates matrix template, only needs to be run once
-    initializeMatrix(seed_vec, seed_length, sequences, bitSequence);
+
+    std::vector<char> dec_char;
+    std::vector<bool> final((pow(2, seed_length)-1), true);
+    for (int u = 0; u < result.size(); ++u) {
+        // Creates matrix templates, find unencrypted bit sequence
+        initializeMatrix(seed_vec, seed_length, sequences, result[u],final, u);
+    }
+
+    for (int i =0; i < final.size(); ++i) {
+        if (final[i] == true) {
+            std::cout << final[i];
+        }
+    }
 
 }
 
@@ -72,6 +91,22 @@ std::vector<std::string> generateParityBitSequences(int seedLength) {
     return sequences;
 }
 
+std::vector<std::vector<bool>> splitIntoBytes(const std::vector<bool>& bitSequence, size_t offset) {
+    std::vector<std::vector<bool>> result;
+
+    // Ensure offset is within bounds
+    if (offset >= bitSequence.size()) {
+        return result; // Return empty if offset is out of range
+    }
+
+    // Start from the offset and process in chunks of 8
+    for (size_t i = offset; i + 8 <= bitSequence.size(); i += 8) {
+        result.emplace_back(bitSequence.begin() + i, bitSequence.begin() + i + 8);
+    }
+
+    return result;
+}
+
 int binaryToDecimal(const std::vector<int>& binary) {
     int decimal = 0;
     int n = 8;
@@ -81,7 +116,8 @@ int binaryToDecimal(const std::vector<int>& binary) {
     return decimal;
 }
 
-void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::vector<std::string>& PSeq, std::vector<bool> data) {
+void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::vector<std::string> &PSeq,
+                      std::vector<bool> data, std::vector<bool> &final, int u) {
     int rows = length + 8;
     int cols = length + 1;
     std::vector<int> P(length);
@@ -90,6 +126,7 @@ void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::
     int B_n;
     std::vector<int> Xn(length);
     int X_n;
+
 
     std::vector<std::vector<int>> matrix(rows, std::vector<int>(cols, 0));
 
@@ -102,66 +139,72 @@ void initializeMatrix(const std::vector<int>& binarySeq, int length, const std::
 
     // For statement to go through parity bit sequence
     for (int m =0 ; m < (pow(2, length)-1) ; ++m) {
-        for (int b =0 ; b < length ; ++b) {
-            unsigned num = PSeq[m][b];
-            P[b] = num - 48;
-        }
-
-        for (int i = 0 ; i < (length + 7); ++i) {
-
-
-            for (int d = 0 ; d < length ; ++d) {
-                Bn[d] = (matrix[i + length - 2][length - 1 - d]) * P[d];
-                if (d == 0) {
-                    B_n = Bn[d];
-                }
-                if (d != 0) {
-                    B_n = B_n ^ Bn[d];
-                }
+        if (final[m] == 1) {
+            for (int b =0 ; b < length ; ++b) {
+                unsigned num = PSeq[m][b];
+                P[b] = num - 48;
             }
-            for (int j = 0; j < length; ++j) {
-                if (length + i + j - 1 < length + 8) {
-                    matrix[length + i + j - 1][length - 1 - j] = B_n;
-                }
-            }
-            if (i > length-2) {
+
+            for (int i = 0 ; i < (length + 7); ++i) {
+
+
                 for (int d = 0 ; d < length ; ++d) {
-                    Xn[d] = (matrix[i + length - 2][length - 1 - d]) * P[length - 1 - d];
+                    Bn[d] = (matrix[i + length - 2][length - 1 - d]) * P[d];
                     if (d == 0) {
-                        X_n = Xn[d];
+                        B_n = Bn[d];
                     }
                     if (d != 0) {
-                        X_n = X_n ^ Xn[d];
+                        B_n = B_n ^ Bn[d];
                     }
                 }
-                X_n = X_n ^ data[i-1];
-                matrix[i+1][length] = X_n;
+                for (int j = 0; j < length; ++j) {
+                    if (length + i + j - 1 < length + 8) {
+                        matrix[length + i + j - 1][length - 1 - j] = B_n;
+                    }
+                }
+                if (i > length-2) {
+                    for (int d = 0 ; d < length ; ++d) {
+                        Xn[d] = (matrix[i + length - 2][length - 1 - d]) * P[length - 1 - d];
+                        if (d == 0) {
+                            X_n = Xn[d];
+                        }
+                        if (d != 0) {
+                            X_n = X_n ^ Xn[d];
+                        }
+                    }
+                    X_n = X_n ^ data[i-1];
+                    matrix[i+1][length] = X_n;
+                }
             }
-        }
-        // Display the matrix
-        std::cout << "Initialized " << rows << "x" << cols << " matrix:\n";
-        for (const auto& row : matrix) {
-            for (int val : row) {
-                std::cout << val << " ";
+            // Display the matrix
+            std::cout << "Initialized " << rows << "x" << cols << " matrix:\n";
+            for (const auto& row : matrix) {
+                for (int val : row) {
+                    std::cout << val << " ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << "Decrypted Byte: ";
+            for (int h=0; h<8; ++h) {
+                decrypted_byte[h] = matrix[length + h][length];
+                std::cout << decrypted_byte[h];
             }
             std::cout << "\n";
+            int decimal_Value = binaryToDecimal(decrypted_byte);
+            std::cout << "Decimal Value: " << decimal_Value << std::endl;
+            if (decimal_Value >= 32 && decimal_Value <= 127) {
+                char asciiChar = static_cast<char>(decimal_Value);
+                std::cout << "The ASCII character for " << decimal_Value << " is: " << asciiChar << std::endl;
+            } else {
+                std::cout << "Invalid ASCII value." << std::endl;
+                final[m] = false;
+            }
+            std::cout << "\n \n";
         }
-        std::cout << "Decrypted Byte: ";
-        for (int h=0; h<8; ++h) {
-            decrypted_byte[h] = matrix[length + h][length];
-            std::cout << decrypted_byte[h];
-        }
-        std::cout << "\n";
-        int decimal_Value = binaryToDecimal(decrypted_byte);
-        std::cout << "Decimal Value: " << decimal_Value << std::endl;
-        if (decimal_Value >= 0 && decimal_Value <= 127) {
-            char asciiChar = static_cast<char>(decimal_Value);
-            std::cout << "The ASCII character for " << decimal_Value << " is: " << asciiChar << std::endl;
-        } else {
-            std::cout << "Invalid ASCII value." << std::endl;
-        }
-        std::cout << "\n \n";
     }
+
+}
+
 
 
 
