@@ -3,15 +3,14 @@
 #include <vector>
 #include <bitset>
 #include <pstl/execution_defs.h>
-#include <cstdint>
 
 // Function Declarations
 std::vector<std::string> generateParityBitSequences(int seedLength);
 std::vector<std::vector<bool>> splitIntoBytes(const std::vector<bool>& bitSequence, size_t offset);
 int binaryToDecimal(const std::vector<int>& binary);
-
 void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::vector<std::string> &PSeq,
-                      std::vector<bool> data, std::vector<bool> &final, int u);
+                      std::vector<bool> data, std::vector<bool> &final, int u, std::vector<std::vector<char>>& character);
+void printSelectedRows(const std::vector<std::vector<char>>& text, const std::vector<bool>& PB_checker);
 
 
 
@@ -58,18 +57,14 @@ int main() {
     }
 
 
-    std::vector<char> dec_char;
+    std::vector<std::vector<char>> characters((pow(2, seed_length)-1), std::vector<char>(result.size(), 'X'));
     std::vector<bool> final((pow(2, seed_length)-1), true);
     for (int u = 0; u < result.size(); ++u) {
         // Creates matrix templates, find unencrypted bit sequence
-        initializeMatrix(seed_vec, seed_length, sequences, result[u],final, u);
+        initializeMatrix(seed_vec, seed_length, sequences, result[u],final, u, characters);
     }
 
-    for (int i =0; i < final.size(); ++i) {
-        if (final[i] == true) {
-            std::cout << final[i];
-        }
-    }
+    printSelectedRows(characters, final);
 
 }
 
@@ -117,7 +112,7 @@ int binaryToDecimal(const std::vector<int>& binary) {
 }
 
 void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::vector<std::string> &PSeq,
-                      std::vector<bool> data, std::vector<bool> &final, int u) {
+                      std::vector<bool> data, std::vector<bool> &final, int u, std::vector<std::vector<char>>& character) {
     int rows = length + 8;
     int cols = length + 1;
     std::vector<int> P(length);
@@ -195,6 +190,7 @@ void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::
             if (decimal_Value >= 32 && decimal_Value <= 127) {
                 char asciiChar = static_cast<char>(decimal_Value);
                 std::cout << "The ASCII character for " << decimal_Value << " is: " << asciiChar << std::endl;
+                character[m][u] = asciiChar;
             } else {
                 std::cout << "Invalid ASCII value." << std::endl;
                 final[m] = false;
@@ -202,7 +198,19 @@ void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::
             std::cout << "\n \n";
         }
     }
+}
 
+void printSelectedRows(const std::vector<std::vector<char>>& text, const std::vector<bool>& PB_checker) {
+    for (size_t row = 0; row < text.size(); ++row) {
+        if (row < PB_checker.size() && PB_checker[row] == 1) {  // Ensure row index is within 'result'
+            std::cout << "Possible Decrypted Text: ";
+            for (char c : text[row]) {
+                std::cout << c;
+            }
+            std::cout << std::endl;
+            std::cout << std::endl;
+        }
+    }
 }
 
 
