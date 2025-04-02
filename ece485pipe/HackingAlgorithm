@@ -132,6 +132,7 @@ void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::
         }
     }
 
+
     // For statement to go through parity bit sequence
     for (int m =0 ; m < (pow(2, length)-1) ; ++m) {
         if (final[m] == 1) {
@@ -142,8 +143,9 @@ void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::
 
             for (int i = 0 ; i < (length + 7); ++i) {
 
-
+                //Error withing this section
                 for (int d = 0 ; d < length ; ++d) {
+                    std::cout << i;
                     Bn[d] = (matrix[i + length - 2][length - 1 - d]) * P[d];
                     if (d == 0) {
                         B_n = Bn[d];
@@ -171,6 +173,8 @@ void initializeMatrix(const std::vector<int> &binarySeq, int length, const std::
                     matrix[i+1][length] = X_n;
                 }
             }
+            //End error section
+
             // Display the matrix
             std::cout << "Initialized " << rows << "x" << cols << " matrix:\n";
             for (const auto& row : matrix) {
@@ -217,4 +221,9 @@ void printSelectedRows(const std::vector<std::vector<char>>& text, const std::ve
 
 
 
-}
+
+
+
+
+	
+
